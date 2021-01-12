@@ -92,3 +92,9 @@ check_event_is_streaming:
   elements:
   - selector:
       xpath: //span[contains(.,'Streaming events')]
+click_show_in_kibana_in_console:
+  element:
+    selector:
+      xpath: //a[@class="co-external-link" and @data-test-id="kibana" and contains(., "Show in Kibana")]
+    timeout: 30
+    op: click

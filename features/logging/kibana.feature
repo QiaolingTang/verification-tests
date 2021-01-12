@@ -204,3 +204,53 @@ Feature: Kibana related features
       | password   | <%= user.password %>         |
       | idp        | <%= env.idp %>               |
     Then the step should succeed
+
+  # @author qitang@redhat.com
+  # @case_id OCP-30343
+  @admin
+  @destructive
+  @commonlogging
+  Scenario: Logs can be redirected from Webconsole to kibana
+    Given I switch to the first user
+    Given I create a project with non-leading digit name
+    Given evaluation of `project` is stored in the :proj clipboard
+    When I run the :new_app client command with:
+      | file | <%= BushSlicer::HOME %>/testdata/logging/loggen/container_json_log_template.json |
+    Then the step should succeed
+    Given a pod becomes ready with labels:
+      | run=centos-logtest,test=centos-logtest |
+    And evaluation of `pod` is stored in the :loggen_pod clipboard
+
+    Given I switch to the second user
+    And the second user is cluster-admin
+    And I use the "openshift-logging" project
+    Given evaluation of `route('kibana', service('kibana',project('openshift-logging', switch: false))).dns(by: admin)` is stored in the :kibana_route clipboard
+    And I wait for the "kibana" console_external_log_link_console_openshift_io to appear
+    Given I wait for the "app" index to appear in the ES pod with labels "es-node-master=true"
+    Given I wait for the "infra" index to appear in the ES pod with labels "es-node-master=true"
+    And I wait for the project "<%= cb.proj.name %>" logs to appear in the ES pod
+    When I login to kibana logging web console
+    Then the step should succeed
+    When I perform the :create_index_pattern_in_kibana web action with:
+      | index_pattern_name | "*app" |
+    Then the step should succeed
+    When I perform the :create_index_pattern_in_kibana web action with:
+      | index_pattern_name | "*infra" |
+    Then the step should succeed
+
+    Given I open admin console in a browser
+    When I perform the :goto_one_pod_log_page web action with:
+      | project_name | <%= cb.proj.name %>       |
+      | pod_name     | <%= cb.loggen_pod.name %> |
+    Then the step should succeed
+    When I run the :click_show_in_kibana_in_console web action
+    Then the step should succeed
+    And I perform the :login_sequence web action in ":title=>Login" window with:
+      | username   | <%= user.name %>               |
+      | password   | <%= user.password %>           |
+      | idp        | <%= env.idp %>                 |
+    Then the step should succeed
+    When I perform the :kibana_find_index_pattern web action in ":url=>https://<%= cb.kibana_route %>" window with:
+      | index_pattern_name | *app |
+    Then the step should succeed
+    And I pry
